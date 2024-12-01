@@ -3,7 +3,7 @@ from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
-from models import db, User , user_schema, users_schema
+from models import db, User , user_schema, users_schema, Organization, organizations_schema, organization_schema
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app=Flask(__name__)
@@ -154,6 +154,113 @@ def delete_user(id):
         'message': 'user deleted successfully'
     })  
 
+@app.route('/api/organizations', methods=['POST'])
+def create_organization():
+    data = request.get_json()
+    name = data.get('name')
+    enroll_code = data.get('enroll_code')
+    created_by = data.get('created_by')
+
+    if Organization.query.filter_by(name=name).first():
+        return jsonify({
+            'status': 'conflict',
+            'message': 'Organization already exists'
+        }), 409
+
+    organization = Organization(name=name, enroll_code=enroll_code, created_by=created_by)
+    db.session.add(organization)
+    db.session.commit()
+
+    try:
+        db.session.add(organization)
+        db.session.commit()
+        result = organization_schema.dump(organization)
+        return jsonify({
+            'status': 'success',
+            'data': result,
+            'message': 'Organization created successfully'
+        }), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+    
+# Endpoint menampilkan semua data Organization
+@app.route('/api/organizations', methods=['GET'])
+def get_organizations():
+    org = Organization.query.all()
+    if not org:
+        return jsonify({
+            'status': 'not found',
+            'message': 'organization not found',
+            'data': []
+        })
+    
+    result = organizations_schema.dump(org)
+    return jsonify({
+        'status': 'success',
+        'data': result,
+        'message': 'organizations found'
+    })
+
+# Endpoint menampilkan satu data Organization berdasarkan ID
+@app.route('/api/organizations/<int:id>', methods=['GET'])
+def get_organization(id):
+    try:
+        org = Organization.query.get_or_404(id)
+        result = organization_schema.dump(org)
+        return jsonify({
+            'status': 'success',
+            'data': result,
+            'message': 'organization found'
+        }), 200
+    
+    except Exception as e:
+        return jsonify({    
+            'status': 'error',
+            'message': str(e)
+        })
+
+# Endpoint update data Organization berdasarkan ID
+@app.route('/api/organizations/<int:id>', methods=['PUT'])
+def update_organization(id):
+    org = Organization.query.get_or_404(id)
+    data = request.get_json()
+
+    for field in ['name', 'enroll_code', 'created_by']:
+        if field in data:
+            setattr(org, field, data[field])
+
+    db.session.commit()
+    result = organization_schema.dump(org)
+
+    return jsonify({
+        'status': 'success',
+        'data': result,
+        'message': 'organization updated successfully'
+    })
+
+# Endpoint menghapus data Organization berdasarkan id
+@app.route('/api/organizations/<int:id>', methods=['DELETE'])
+def delete_organization(id):
+    org = Organization.query.get_or_404(id)
+
+    if not org:
+        return jsonify({
+            'status': 'error',
+            'message': 'Organization not found'
+        }), 400
+    
+    db.session.delete(org)
+    db.session.commit()
+
+    return jsonify({    
+        'status': 'success',
+        'message': 'organization deleted successfully'
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -74,6 +74,8 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
 class OrganizationSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Organization
+    # created_by = ma.auto_field()
+    creator = ma.Nested('UserSchema', only=['id', 'name', 'email'])
 
 
 class OrgMemberSchema(ma.SQLAlchemyAutoSchema):
