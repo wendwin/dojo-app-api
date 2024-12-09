@@ -1,8 +1,8 @@
-"""initial_db
+"""Initial migration
 
-Revision ID: baa83ebf37e7
+Revision ID: c84f4d9d5e79
 Revises: 
-Create Date: 2024-11-30 16:22:15.245245
+Create Date: 2024-12-08 16:26:12.236287
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'baa83ebf37e7'
+revision = 'c84f4d9d5e79'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -31,8 +31,8 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('enroll_code', sa.String(length=50), nullable=False),
-    sa.Column('created_by', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('enroll_code')
     )
@@ -40,10 +40,10 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('date', sa.Date(), nullable=False),
     sa.Column('time', sa.Time(), nullable=False),
-    sa.Column('created_by', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('org_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
     sa.ForeignKeyConstraint(['org_id'], ['organizations.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('org_members',

@@ -1,13 +1,17 @@
 from flask import Flask, jsonify, request
 from config import Config
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
-from models import db, User , user_schema, users_schema, Organization, organizations_schema, organization_schema
+from models import db, User , Organization, OrgMember, AttendanceSession, AttendanceRecord
+from schema import user_login_schema, user_register_schema ,user_schema, users_schema, organization_create_schema ,organizations_schema, organization_schema,org_member_schema, org_members_schema, attendance_session_schema, attendance_sessions_schema, attendance_record_schema, attendance_records_schema
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.exc import IntegrityError
 
 app=Flask(__name__)
 app.config.from_object(Config)
+CORS(app)
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -40,7 +44,7 @@ def register():
     try:
         db.session.add(new_user)
         db.session.commit()
-        result = user_schema.dump(new_user)
+        result = user_register_schema.dump(new_user)
         return jsonify({
             'status': 'success',
             'data': result,
@@ -62,15 +66,12 @@ def login():
     password = data.get('password')
 
     user = User.query.filter_by(email=email).first()
+    result = user_login_schema.dump(user)
 
     if user and check_password_hash(user.password, password):
         return jsonify({
             'status': 'success',
-            'data': {
-                'id': user.id,
-                'name': user.name,
-                'email': user.email
-            },
+            'data': result,
             'message': 'user logged in successfully'
         }), 200
     else:
@@ -83,6 +84,8 @@ def login():
 @app.route('/api/users', methods=['GET'])
 def get_users():
     users = User.query.all()
+
+    
     if not users:
         return jsonify({
             'status': 'not found',
@@ -154,12 +157,13 @@ def delete_user(id):
         'message': 'user deleted successfully'
     })  
 
+# Endpoint menambahkan organisasi
 @app.route('/api/organizations', methods=['POST'])
 def create_organization():
     data = request.get_json()
     name = data.get('name')
     enroll_code = data.get('enroll_code')
-    created_by = data.get('created_by')
+    user_id = data.get('user_id')
 
     if Organization.query.filter_by(name=name).first():
         return jsonify({
@@ -167,26 +171,35 @@ def create_organization():
             'message': 'Organization already exists'
         }), 409
 
-    organization = Organization(name=name, enroll_code=enroll_code, created_by=created_by)
-    db.session.add(organization)
-    db.session.commit()
-
     try:
-        db.session.add(organization)
+        user = User.query.get_or_404(user_id)
+        user.role = 'pelatih'
         db.session.commit()
-        result = organization_schema.dump(organization)
+        # Tambahkan organisasi
+        organization = Organization(name=name, enroll_code=enroll_code, user_id=user_id)
+        db.session.add(organization)
+        db.session.flush()  # Memastikan ID organisasi dihasilkan
+
+        # Tambahkan pelatih sebagai anggota
+        new_member = OrgMember(org_id=organization.id, user_id=user_id)
+        db.session.add(new_member)
+
+        db.session.commit()
+
+        result = organization_create_schema.dump(organization)
         return jsonify({
             'status': 'success',
             'data': result,
             'message': 'Organization created successfully'
         }), 201
-    
+
     except Exception as e:
         db.session.rollback()
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
+
     
 # Endpoint menampilkan semua data Organization
 @app.route('/api/organizations', methods=['GET'])
@@ -261,6 +274,43 @@ def delete_organization(id):
         'status': 'success',
         'message': 'organization deleted successfully'
     })
+
+
+# Endpoint gabung Organization dan User
+@app.route('/api/join-organization', methods=['POST'])
+def join_organization():
+    data = request.json
+    
+    # Ambil user_id dari token atau request
+    user_id = data.get('user_id')  # Di sistem real, ini harus dari token autentikasi
+    enroll_code = data.get('enroll_code')
+    
+    if not user_id or not enroll_code:
+        return jsonify({'error': 'User ID and enroll code are required.'}), 400
+
+    try:
+        # Validasi organisasi berdasarkan enroll_code
+        organization = Organization.query.filter_by(enroll_code=enroll_code).first()
+        if not organization:
+            return jsonify({'error': 'Invalid enroll code.'}), 404
+        
+        # Cek apakah user sudah menjadi anggota organisasi
+        existing_member = OrgMember.query.filter_by(org_id=organization.id, user_id=user_id).first()
+        if existing_member:
+            return jsonify({'error': 'User is already a member of this organization.'}), 400
+        
+        # Tambahkan ke tabel OrgMember
+        new_member = OrgMember(org_id=organization.id, user_id=user_id)
+        db.session.add(new_member)
+        db.session.commit()
+
+        return jsonify({'message': 'Successfully joined the organization.'}), 201
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Database error occurred.'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
