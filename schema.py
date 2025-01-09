@@ -41,7 +41,7 @@ class OrganizationSchema(ma.SQLAlchemyAutoSchema):
     member = ma.Nested('OrgMemberSchema', many=True)
     attendance_sessions = ma.Nested('AttendanceSessionSchema', many=True) 
     created_by = ma.Nested('UserSchema', only=['name', 'email', 'role'])
-    
+    attendance_records = ma.Nested('AttendanceRecordSchema', many=True)
 
 
 class OrgMemberSchema(ma.SQLAlchemyAutoSchema):
@@ -49,16 +49,22 @@ class OrgMemberSchema(ma.SQLAlchemyAutoSchema):
         model = OrgMember
         exclude = ['id']
 
-    user = ma.Nested('UserSchema', only=['name', 'email', 'role'])
+    user = ma.Nested('UserSchema', only=['name', 'email', 'role', 'id'])
     
 class AttendanceSessionSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = AttendanceSession
+
+    created_by = ma.Nested('UserSchema', only=['name'])
+    organization = ma.Nested('OrganizationSchema', only=['name'])
     
 
 class AttendanceRecordSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = AttendanceRecord
+
+    user = ma.Nested('UserSchema', only=['name', 'email'])
+    attendance_session = ma.Nested('AttendanceSessionSchema', only=['date', 'time_open', 'time_close'])
 
 
 user_login_schema = UserLoginSchema()

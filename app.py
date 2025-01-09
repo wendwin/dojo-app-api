@@ -1,4 +1,5 @@
-from flask import Flask, jsonify, request
+import random
+from flask import Flask, jsonify, request   
 from config import Config
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -68,10 +69,13 @@ def login():
     user = User.query.filter_by(email=email).first()
     result = user_login_schema.dump(user)
 
+    string_random = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    token = ''.join(random.choice(string_random) for _ in range(64))
     if user and check_password_hash(user.password, password):
         return jsonify({
             'status': 'success',
             'data': result,
+            'token': token,
             'message': 'user logged in successfully'
         }), 200
     else:
@@ -175,23 +179,22 @@ def create_organization():
         user = User.query.get_or_404(user_id)
         user.role = 'pelatih'
         db.session.commit()
-        # Tambahkan organisasi
+
         organization = Organization(name=name, enroll_code=enroll_code, user_id=user_id)
         db.session.add(organization)
-        db.session.flush()  # Memastikan ID organisasi dihasilkan
+        db.session.flush() 
 
-        # Tambahkan pelatih sebagai anggota
         new_member = OrgMember(org_id=organization.id, user_id=user_id)
         db.session.add(new_member)
 
         db.session.commit()
 
         result = organization_create_schema.dump(organization)
-        return jsonify({
+        return jsonify({    
             'status': 'success',
             'data': result,
             'message': 'Organization created successfully'
-        }), 201
+        }), 200
 
     except Exception as e:
         db.session.rollback()
@@ -281,36 +284,72 @@ def delete_organization(id):
 def join_organization():
     data = request.json
     
-    # Ambil user_id dari token atau request
-    user_id = data.get('user_id')  # Di sistem real, ini harus dari token autentikasi
+    user_id = data.get('user_id')  
     enroll_code = data.get('enroll_code')
     
     if not user_id or not enroll_code:
         return jsonify({'error': 'User ID and enroll code are required.'}), 400
 
     try:
-        # Validasi organisasi berdasarkan enroll_code
         organization = Organization.query.filter_by(enroll_code=enroll_code).first()
         if not organization:
             return jsonify({'error': 'Invalid enroll code.'}), 404
         
-        # Cek apakah user sudah menjadi anggota organisasi
         existing_member = OrgMember.query.filter_by(org_id=organization.id, user_id=user_id).first()
         if existing_member:
             return jsonify({'error': 'User is already a member of this organization.'}), 400
         
-        # Tambahkan ke tabel OrgMember
         new_member = OrgMember(org_id=organization.id, user_id=user_id)
         db.session.add(new_member)
         db.session.commit()
 
-        return jsonify({'message': 'Successfully joined the organization.'}), 201
+        return jsonify({'message': 'Successfully joined the organization.'}), 200
     except IntegrityError:
         db.session.rollback()
         return jsonify({'error': 'Database error occurred.'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# Endpoint membuat presensi
+@app.route('/api/add-presences', methods=['POST'])
+def create_presence():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    org_id = data.get('org_id')
+    date = data.get('date')
+    time_open = data.get('time_open')
+    time_close = data.get('time_close')
+
+    new_presence = AttendanceSession(user_id=user_id, org_id=org_id, date=date, time_open=time_open, time_close=time_close)
+    db.session.add(new_presence)
+    db.session.commit()
+
+    return jsonify({
+        'status': 'success',
+        'data': attendance_session_schema.dump(new_presence),
+        'message': 'presence created successfully'
+    }), 201
+
+
+# Endpoint presensi user
+@app.route('/api/presences', methods=['POST'])
+def fill_presence():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    attendance_session_id = data.get('attendance_session_id')
+    status = data.get('status')
+
+    new_presence = AttendanceRecord(user_id=user_id, attendance_session_id=attendance_session_id, status=status)
+    db.session.add(new_presence)
+
+    db.session.commit()
+
+    return jsonify({
+        'status': 'success',
+        'data': attendance_record_schema.dump(new_presence),
+        'message': 'Presence filled successfully'
+    }), 201
 
 if __name__ == '__main__':
     app.run(debug=True)

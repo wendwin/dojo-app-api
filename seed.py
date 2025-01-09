@@ -7,23 +7,37 @@ def seed_users():
         users = [
             User(
                 id=1,
-                name='Budi Santoso',
-                email='budi@gmail.com',
-                password=generate_password_hash('budi1'),
-                role='pelatih'
+                name='Andi Perkasa',
+                email='andiperkasa@gmail.com',
+                password=generate_password_hash('andi123'),
+                role='atlet'
             ),
             User(
                 id=2,
-                name='Cindy Amalia',
-                email='cindy@gmail.com',
-                password=generate_password_hash('cindi2'),
+                name='Budi Santoso',
+                email='budisantoso@gmail.com',
+                password=generate_password_hash('budi123'),
                 role='atlet'
             ),
             User(
                 id=3,
-                name='Dimas Aditya',
-                email='dimas@gmail.com',
-                password=generate_password_hash('dimas3'),
+                name='Heru Gunawan',
+                email='herugunawan@gmail.com',
+                password=generate_password_hash('heru123'),
+                role='atlet'
+            ),
+            User(
+                id=4,
+                name='Fajar Kurniawan',
+                email='fajarkurniawan@gmail.com',
+                password=generate_password_hash('fajar123'),
+                role='atlet'
+            ),
+            User(
+                id=5,
+                name='Dika Bayu',
+                email='dikabayu5@gmail.com',
+                password=generate_password_hash('dika123'),
                 role='atlet'
             ),
         ]
@@ -38,9 +52,21 @@ def seed_organizations():
         organizations = [
             Organization(
                 id=1,
-                name='Kota Yogyakarta',
-                enroll_code='A1-YK-001',
+                name='orgs1',
+                enroll_code='orgs1',
                 created_by=1
+            ),
+            Organization(
+                id=2,
+                name='orgs2',
+                enroll_code='orgs2',
+                created_by=2
+            ),
+            Organization(
+                id=3,
+                name='orgs3',
+                enroll_code='orgs3',
+                created_by=3
             ),
         ]
 
@@ -52,4 +78,4 @@ def seed_organizations():
 
 if __name__ == '__main__':
     seed_users()
-    seed_organizations()
+    # seed_organizations()
